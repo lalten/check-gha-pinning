@@ -1,0 +1,6 @@
+- id: check-gha-pinning
+  name: GitHub Actions Pinning
+  entry: check-gha-pinning
+  language: python
+  types: [yaml]
+  files: ^.github/workflows/.*\.ya?ml$
