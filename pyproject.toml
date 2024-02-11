@@ -1,8 +1,8 @@
 [project]
-name = "check_gha_pinning"
-version  = "1"
 dependencies = ["PyYAML"]
+name = "check_gha_pinning"
 requires-python = ">= 3.10"
+version = "1"
 
 [project.scripts]
 check-gha-pinning = "check_gha_pinning:main"
