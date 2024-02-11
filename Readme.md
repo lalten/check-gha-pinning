@@ -11,28 +11,29 @@ Add the following to your `.pre-commit-config.yaml`:
 
 ```yaml
 - repo: https://github.com/lalten/check-gha-pinning
-  rev: v1.0.0  # or whatever is the latest version
+  rev: v1.1.0 # or whatever is the latest version
   hooks:
-  - id: check-gha-pinning
+    - id: check-gha-pinning
 ```
 
 If a GitHub Actions Workflow is `using` an action without a commit hash, the hook will fail like this:
+
 ```
-Problems in .github/workflows/ci.yml:
-actions/checkout@v4.1.1 is not pinned to a commit hash
+.github/workflows/ci.yml:11: actions/checkout@v4.1.1 is not pinned to commit (should be b4ffde65f46336ab88eb53be808477a3936bae11)
 ```
 
 ## Configuration
 
 You can ignore the pinning of some actions by adding a `noqa: gha-pinning` comment on the uses line.
 Example:
+
 ```yaml
 jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4.1.1  # noqa: gha-pinning
-    - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+      - uses: actions/checkout@v4.1.1 # noqa: gha-pinning
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
 ```
 
 By default the hook will check yaml files in `.github/workflows` (see [.pre-commit-hooks.yaml](.pre-commit-hooks.yaml)).
