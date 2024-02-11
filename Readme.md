@@ -38,3 +38,13 @@ jobs:
 
 By default the hook will check yaml files in `.github/workflows` (see [.pre-commit-hooks.yaml](.pre-commit-hooks.yaml)).
 You can override this by setting the `files` parameter of the hook.
+
+## References
+
+This pre-commit hook was inspired by https://github.com/zgosalvez/github-actions-ensure-sha-pinned-actions.
+
+Alternatives:
+
+- https://github.com/zgosalvez/github-actions-ensure-sha-pinned-actions
+- https://github.com/mheap/pin-github-action
+- https://github.com/renovatebot/renovate/blob/main/docs/usage/configuration-options.md#pindigests
