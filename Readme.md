@@ -50,3 +50,4 @@ Alternatives:
 - https://github.com/zgosalvez/github-actions-ensure-sha-pinned-actions
 - https://github.com/mheap/pin-github-action
 - https://github.com/renovatebot/renovate/blob/main/docs/usage/configuration-options.md#pindigests
+- https://github.com/rhysd/actionlint (does not check action pinning as of 2023-02-11)
