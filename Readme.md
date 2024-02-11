@@ -39,6 +39,8 @@ jobs:
 By default the hook will check yaml files in `.github/workflows` (see [.pre-commit-hooks.yaml](.pre-commit-hooks.yaml)).
 You can override this by setting the `files` parameter of the hook.
 
+To disable the suggestion for the commit hashes of tag and branch pins, set the `GHA_PINNING_SKIP_GIT_CHECK` environment variable.
+
 ## References
 
 This pre-commit hook was inspired by https://github.com/zgosalvez/github-actions-ensure-sha-pinned-actions.
