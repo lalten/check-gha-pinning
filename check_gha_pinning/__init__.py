@@ -1,7 +1,9 @@
+import os
 import pathlib
 import re
 import sys
 import ruamel.yaml
+import ruamel.yaml.comments
 import subprocess
 
 IGNORE_PRAGMA = "noqa: gha-pinning"
@@ -10,33 +12,40 @@ _SHA256 = re.compile(r"\b[a-fA-F0-9]{64}\b")
 _SHA1 = re.compile(r"\b[a-f0-9]{40}\b")
 
 
-class _RefNotFound(RuntimeError):
-    pass
+class GHAPinningError(RuntimeError):
+    """Base class for all errors raised by this module."""
 
 
-def _get_commit_for_tag(action: str, tag: str) -> str:
-    cmd = ["git", "ls-remote", "--exit-code", f"https://github.com/{action}", tag]
+class _RefNotFoundError(GHAPinningError):
+    """Git ref is not found by `git ls-remote`."""
+
+
+class _UnpinnedContainerError(GHAPinningError):
+    """Container is not pinned to a sha256 hash."""
+
+
+class _NotPinnedToCommitError(GHAPinningError):
+    """Action is not pinned to a SHA1 commit hash."""
+
+
+def _get_commit_for_ref(action: str, ref: str) -> str:
+    cmd = ["git", "ls-remote", "--exit-code", f"https://github.com/{action}", ref]
     try:
         return subprocess.check_output(cmd, text=True).split("\t")[0]
     except subprocess.CalledProcessError as ex:
         if ex.returncode == 2:
-            raise _RefNotFound(f"Tag {tag} not found for {action}")
+            raise _RefNotFoundError(f"Ref {ref} not found for {action}")
         raise
 
 
-def _check(line: str) -> str | None:
+def _check(line: str) -> None:
     if "@" not in line:
         return  # local actions (./path) don't use @ versions.
     if line.startswith("docker://"):
         if "sha256:" not in line or not re.match(_SHA256, line.split("sha256:")[1]):
-            return f"{line} does not have a valid sha256 hash"
-        return None
-    if not re.match(_SHA1, line.split("@")[1]):
-        try:
-            hash = _get_commit_for_tag(*line.split("@"))
-        except _RefNotFound as ex:
-            return str(ex)
-        return f"{line} is pinned to a tag, not a commit hash. Suggest using {hash}"
+            raise _UnpinnedContainerError()
+    elif not re.match(_SHA1, line.split("@")[1]):
+        raise _NotPinnedToCommitError()
 
 
 def check_pinning(file: pathlib.Path) -> list[str]:
@@ -49,23 +58,38 @@ def check_pinning(file: pathlib.Path) -> list[str]:
     except AttributeError:
         return []  # yaml is not a mapping on top level
 
-    uses = []
-    for _, job in jobs.items():
-        if u := job.get("uses"):
-            if IGNORE_PRAGMA not in job.ca:
-                uses.append(u)
+    uses = [job for job in jobs.values() if "uses" in job]
+    for job in jobs.values():
         for step in job.get("steps", []):
-            if u := step.get("uses"):
-                if IGNORE_PRAGMA not in step.ca:
-                    uses.append(u)
-    return [problem for u in uses if (problem := _check(u))]
+            if "uses" in step:
+                uses.append(step)
+
+    problems = []
+    for item in uses:
+        item: ruamel.yaml.comments.CommentedMap
+        action = item["uses"]
+        if IGNORE_PRAGMA in item.ca:
+            continue
+        prefix = f"{file}:{item.lc.line+1}: {action}"
+        try:
+            _check(action)
+        except _UnpinnedContainerError:
+            problems.append(f"{prefix} is not pinned to sha256")
+        except _NotPinnedToCommitError:
+            if os.getenv("GHA_PINNING_SKIP_GIT_CHECK"):
+                problems.append(f"{prefix} is not pinned to commit")
+            else:
+                try:
+                    hash = _get_commit_for_ref(*action.split("@"))
+                except _RefNotFoundError:
+                    problems.append(f"{prefix} is an invalid git ref")
+                problems.append(f"{prefix} is not pinned to commit (should be {hash})")
+
+    return problems
 
 
 def main() -> int:
-    paths = sys.argv[1:]
-    if not paths or sys.argv[1] in ("-h", "--help"):
-        print(f"Usage: {__file__} <file1> <file2> ... <fileN>")
-        sys.exit(1)
+    paths = sys.argv[1:] or [".github/workflows"]
 
     files = []
     for path in paths:
@@ -76,15 +100,10 @@ def main() -> int:
             files.extend(f for f in p.rglob("*") if f.is_file())
     files = list(set(files))
 
-    fail = False
-    for file in files:
-        if problems := check_pinning(file):
-            fail = True
-            print(f"Problems in {file}:")
-            print("\n".join(problems))
-            print()
-
-    return 1 if fail else 0
+    if problems := sum((check_pinning(file) for file in files), []):
+        print("\n".join(problems))
+        return 1
+    return os.EX_OK
 
 
 if __name__ == "__main__":
