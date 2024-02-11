@@ -16,8 +16,3 @@ repos:
     args: [--autofix]
   - id: pretty-format-yaml
     args: [--autofix, --line-width=120]
-
-- repo: .
-  rev: HEAD
-  hooks:
-  - id: check-gha-pinning
