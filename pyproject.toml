@@ -1,5 +1,5 @@
 [project]
-dependencies = ["PyYAML"]
+dependencies = ["ruamel.yaml"]
 name = "check_gha_pinning"
 requires-python = ">= 3.10"
 version = "1"
