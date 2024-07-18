@@ -1,15 +1,17 @@
 import os
 import pathlib
 import re
+import subprocess
 import sys
+
 import ruamel.yaml
 import ruamel.yaml.comments
-import subprocess
 
 IGNORE_PRAGMA = "noqa: gha-pinning"
 
 _SHA256 = re.compile(r"\b[a-fA-F0-9]{64}\b")
 _SHA1 = re.compile(r"\b[a-f0-9]{40}\b")
+_REPO = re.compile(r"^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+\b")
 
 
 class GHAPinningError(RuntimeError):
@@ -28,8 +30,14 @@ class _NotPinnedToCommitError(GHAPinningError):
     """Action is not pinned to a SHA1 commit hash."""
 
 
+def _build_github_url(action: str) -> str:
+    repo = re.match(_REPO, action)
+    return f"https://github.com/{repo.group()}"
+
+
 def _get_commit_for_ref(action: str, ref: str) -> str:
-    cmd = ["git", "ls-remote", "--exit-code", f"https://github.com/{action}", ref]
+    repo_url = _build_github_url(action)
+    cmd = ["git", "ls-remote", "--exit-code", repo_url, ref]
     try:
         return subprocess.check_output(cmd, text=True).split("\t")[0]
     except subprocess.CalledProcessError as ex:
