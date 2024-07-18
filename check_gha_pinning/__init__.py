@@ -12,6 +12,7 @@ IGNORE_PRAGMA = "noqa: gha-pinning"
 _SHA256 = re.compile(r"\b[a-fA-F0-9]{64}\b")
 _SHA1 = re.compile(r"\b[a-f0-9]{40}\b")
 _REPO = re.compile(r"^[a-zA-Z0-9-]+/[a-zA-Z0-9-]+\b")
+_TAG_REF = re.compile(r"^refs/tags/([a-zA-Z0-9-\.]+)$")
 
 
 class GHAPinningError(RuntimeError):
@@ -35,14 +36,26 @@ def _build_github_url(action: str) -> str:
     return f"https://github.com/{repo.group()}"
 
 
-def _get_commit_for_ref(action: str, ref: str) -> str:
+def _get_action_tags(action: str) -> tuple[dict[str, str], dict[str, list[str]]]:
     repo_url = _build_github_url(action)
-    cmd = ["git", "ls-remote", "--exit-code", repo_url, ref]
+    cmd = ["git", "ls-remote", "--exit-code", repo_url]
+    by_tag = {}
+    by_sha = {}
     try:
-        return subprocess.check_output(cmd, text=True).split("\t")[0]
+        lines = subprocess.check_output(cmd, text=True).splitlines()
+        for line in lines:
+            sha, ref = line.split("\t")
+            match = re.match(_TAG_REF, ref)
+            if match:
+                by_tag[match.group(1)] = sha
+                if sha not in by_sha:
+                    by_sha[sha] = [match.group(1)]
+                else:
+                    by_sha[sha].append(match.group(1))
+        return by_tag, by_sha
     except subprocess.CalledProcessError as ex:
-        if ex.returncode == 2:
-            raise _RefNotFoundError(f"Ref {ref} not found for {action}")
+        if ex.returncode >= 2:
+            raise _RefNotFoundError(f"repo {repo_url} not found")
         raise
 
 
@@ -75,7 +88,7 @@ def check_pinning(file: pathlib.Path) -> list[str]:
     problems = []
     for item in uses:
         item: ruamel.yaml.comments.CommentedMap
-        action = item["uses"]
+        action: str = item["uses"]
         if IGNORE_PRAGMA in item.ca:
             continue
         prefix = f"{file}:{item.lc.line+1}: {action}"
@@ -87,11 +100,18 @@ def check_pinning(file: pathlib.Path) -> list[str]:
             if os.getenv("GHA_PINNING_SKIP_GIT_CHECK"):
                 problems.append(f"{prefix} is not pinned to commit")
             else:
+                action_name, ref = action.split("@")
                 try:
-                    hash = _get_commit_for_ref(*action.split("@"))
-                except _RefNotFoundError:
-                    problems.append(f"{prefix} is an invalid git ref")
-                problems.append(f"{prefix} is not pinned to commit (should be {hash})")
+                    tags, shas = _get_action_tags(action)
+                    hash = tags.get(ref)
+                    if not hash:
+                        raise _RefNotFoundError(f"tag {ref} not found")
+                    tags = shas.get(hash) if hash else [ref]
+                    specific_tag = max(tags, key=len)
+
+                    problems.append(f"{prefix} is not pinned to commit (should be {hash} # {specific_tag})")
+                except _RefNotFoundError as ex:
+                    problems.append(f"{prefix}: {ex}")
 
     return problems
 
