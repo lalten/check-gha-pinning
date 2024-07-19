@@ -4,6 +4,9 @@ name = "check_gha_pinning"
 requires-python = ">= 3.10"
 version = "v1.1.0"
 
+[project.optional-dependencies]
+test = ["pytest"]
+
 [project.scripts]
 check-gha-pinning = "check_gha_pinning:main"
 
