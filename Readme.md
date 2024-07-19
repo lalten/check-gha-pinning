@@ -11,7 +11,7 @@ Add the following to your `.pre-commit-config.yaml`:
 
 ```yaml
 - repo: https://github.com/lalten/check-gha-pinning
-  rev: v1.1.0 # or whatever is the latest version
+  rev: v1.2.0 # or whatever is the latest version
   hooks:
     - id: check-gha-pinning
 ```
