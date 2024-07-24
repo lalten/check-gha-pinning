@@ -10,21 +10,42 @@ jobs:
     steps:
     - uses: actions/checkout@v4.1.7  # noqa: gha-pinning  # <-- use this comment to allow unpinned actions
     - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.0.0
+      with:
+        python-version-file: pyproject.toml
+        cache: pip
+        cache-dependency-path: |
+          .pre-commit-config.yaml
     - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  # v3.0.1
 
   try-repo:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.0.0
+      with:
+        python-version-file: pyproject.toml
+        cache: pip
+        cache-dependency-path: |
+          .pre-commit-hooks.yaml
+          pyproject.toml
     - run: pip install pre-commit
     - run: pre-commit try-repo . --all-files
 
   pytest:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  # v4.1.7
     - uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.0.0
+      with:
+        python-version-file: pyproject.toml
+        cache: pip
+        cache-dependency-path: pyproject.toml
     - run: pip install --upgrade pip
     - run: pip install .[test]
-    - run: pytest
+    - run: python -m pytest -v
