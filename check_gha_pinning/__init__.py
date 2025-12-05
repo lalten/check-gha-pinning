@@ -112,7 +112,7 @@ def check_pinning(file: pathlib.Path) -> list[str]:
     for item in uses:
         item: ruamel.yaml.comments.CommentedMap
         action: str = item["uses"]
-        if IGNORE_PRAGMA in item.ca:
+        if IGNORE_PRAGMA in str(item.ca):
             continue
         prefix = f"{file}:{item.lc.line+1}: {action}"
         try:
