@@ -185,6 +185,29 @@ jobs:
         assert not check
 
 
+def test_check_pinning_with_comment_before_with():
+    """Test that comments before 'with:' don't cause AttributeError."""
+    file = MagicMock()
+    file_path = ".github/workflows/test.yaml"
+    file.__str__.return_value = file_path
+    yaml = ruamel.yaml.YAML()
+    yaml_str = """\
+jobs:
+  test-job:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      with:
+        # Hello
+        ref: ${{ github.event.pull_request.head.ref }}
+"""
+    with patch("ruamel.yaml.YAML.load", return_value=yaml.load(yaml_str)):
+        # Should not raise AttributeError
+        result = check_pinning(file)
+        # The action is properly pinned, so no problems should be reported
+        assert result == []
+
+
 @patch("check_gha_pinning._check")
 @patch("check_gha_pinning._get_action_tags")
 def test_check_pinning_success_github_check(
